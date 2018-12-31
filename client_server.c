@@ -8,9 +8,10 @@
 
 #define RESPONSE_SIZE 4096
 #define PORT 3001
-#define HOST "localhost"
+#define HOST "192.168.1.4"
+
 #define HTTP_METHOD "GET"  //post: path(/docs/)  //get: path(/docs/test18)
-#define PATH "/docs/test18/"
+#define PATH "/docs/test12/"
 #define CONTENT_TYPE "Content-Type: application/json; charset=utf-8"
 #define CONTENT_BODY "{\"name\": \"test18\", \"content\": \"FROM c program\"}"
 
