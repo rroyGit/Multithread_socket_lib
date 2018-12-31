@@ -5,14 +5,22 @@
 #include <sys/socket.h> /* socket, connect */
 #include <netinet/in.h> /* struct sockaddr_in, struct sockaddr */
 #include <netdb.h> /* struct hostent, gethostbyname */
+#include <ctype.h> /* isdigit */
 
 #define RESPONSE_SIZE 4096
+<<<<<<< HEAD
 #define PORT 3001
 #define HOST "192.168.1.4"
 
 #define HTTP_METHOD "GET"  //post: path(/docs/)  //get: path(/docs/test18)
 #define PATH "/docs/test12/"
 #define CONTENT_TYPE "Content-Type: application/json; charset=utf-8"
+=======
+//#define CONTENT_TYPE "Content-Type: application/json; charset=utf-8"
+#define CONTENT_TYPE "Content-Type: text/html; charset=utf-8"
+#define NUM_ARGUMENTS 4
+#define STRING_LENGTH 80
+>>>>>>> 8416d2b42d6b1c9aca5d727461b709ce00762cc9
 #define CONTENT_BODY "{\"name\": \"test18\", \"content\": \"FROM c program\"}"
 
 
@@ -33,14 +41,27 @@ void sendRequest (char** message, int* socket_ref);
 // receive the response
 char* receiveResponse(int* socket_ref);
 
+
+void initArgs (int* argc, char*** args);
+char** getArguments(int* argc, char*** args);
+int getIntValue (char** string);
+
+char HTTP_METHOD[] = "GET";
+char HOST[] = "localhost";
+int PORT = 3001;
+char PATH[] = "/temp";
+char QUERY[] = "?sensorId=56&value=55";
+
+
 int main (int argc, char ** args) {
-    
     struct hostent *server = NULL;
     struct sockaddr_in* server_addr = NULL;
 
     int socket_ref, bytes, sent, received, total;
     char *message = NULL, *response = NULL;
 
+    initArgs(&argc, &args);
+    
     message = getMessage();
 
     createSocket(&socket_ref);
@@ -58,8 +79,8 @@ int main (int argc, char ** args) {
     // close the socket
     close(socket_ref);
 
-    // process response
-    printf("Response:\n%s\n",response);
+    //process response
+    printf("Response:\n%s\n", response);
 
     free(message);
     free(response);
@@ -70,7 +91,7 @@ int main (int argc, char ** args) {
 int getMessageSize () {
     int msg_size = 0;
     if (strcmp(HTTP_METHOD, "POST") == 0) {
-        msg_size += strlen("%s %s HTTP/1.0\r\n");
+        msg_size += strlen("%s %s%s HTTP/1.0\r\n");
         msg_size += strlen(HTTP_METHOD);// method
         msg_size += strlen(PATH);// path
         msg_size += strlen(CONTENT_TYPE) + strlen("\r\n"); // header
@@ -82,7 +103,8 @@ int getMessageSize () {
         msg_size += strlen("%s %s HTTP/1.0\r\n");
         msg_size += strlen(HTTP_METHOD);// method
         msg_size += strlen(PATH);// path
-        msg_size += strlen(CONTENT_TYPE) + strlen("\r\n"); // header
+        msg_size += strlen(CONTENT_TYPE); // header
+        msg_size += strlen(QUERY) + strlen("\r\n");
         
         msg_size += strlen("\r\n");
     }
@@ -102,15 +124,15 @@ char* getMessage () {
         strcat(message, CONTENT_BODY);
     } else if (strcmp(HTTP_METHOD, "GET") == 0) {
 
-        sprintf(message,"%s %s HTTP/1.0\r\n", HTTP_METHOD, PATH);
+        sprintf(message,"%s %s%s HTTP/1.0\r\n", HTTP_METHOD, PATH, QUERY);
         strcat(message, CONTENT_TYPE); // header
         strcat(message, "\r\n");
 
         strcat(message, "\r\n");
     }
 
-    // sending this...
-    // printf("---\n%s\n---\n", message);
+    //sending this...
+    //printf("---\n%s\n---\n", message);
     return message;
 }
 
@@ -164,7 +186,7 @@ void sendRequest (char** message, int* socket_ref) {
         sent += bytes;
     } while (sent < total);
 
-    printf("Data sent...yo\n");
+    printf("Data sent...yo\n\n");
 }
 
 // receive the response
@@ -177,7 +199,6 @@ char* receiveResponse(int* socket_ref) {
    
     do {
         bytes = read(*socket_ref, response + received, total - received);
-        printf("%s", response);
         if (bytes < 0) {
             perror("ERROR reading response from socket yo");
             exit(EXIT_FAILURE);
@@ -194,4 +215,56 @@ char* receiveResponse(int* socket_ref) {
     }
 
     return response;
+}
+
+void initArgs (int* argc, char*** args ) {
+    char** arguments = NULL;
+   
+    if ((arguments = getArguments(argc, args)) != NULL) {
+        // HOST
+        if (arguments[0] != NULL) strcpy(HOST, arguments[0]);
+        // PORT
+        if (arguments[1] != NULL) PORT = getIntValue(&arguments[1]);
+        // PATH
+        if (arguments[2] != NULL) strcpy(PATH, arguments[2]);
+        // QUERY
+        if (arguments[3] != NULL) strcpy(QUERY, arguments[3]);
+
+        printf("Using following values > HOST: %s PORT: %i PATH: %s QUERY: %s\n", HOST, PORT, PATH, QUERY);
+    }
+}
+
+char** getArguments(int* argc, char*** args) {
+    int numArguments = *argc;
+    char** arguments = *args;
+    char** returnList;
+  
+    if (numArguments == 1) {
+        printf("Using default values > HOST: %s PORT: %i PATH: %s QUERY: %s\n", HOST, PORT, PATH, QUERY);
+        return NULL;
+    } else if (numArguments == NUM_ARGUMENTS + 1) {
+        returnList = malloc(NUM_ARGUMENTS);
+
+        for (int i = 0; i < NUM_ARGUMENTS; i++) {
+            returnList[i] = malloc(STRING_LENGTH * sizeof(char));
+            strcpy(returnList[i], arguments[i+1]);
+        }
+    } else {
+        printf("Usage: <HOST> <PORT> <PATH> <QUERY>\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return returnList;
+}
+
+int getIntValue (char** string) {
+  
+    for (int i = 0; i < strlen(*string); i++) {
+        if(!isdigit((*string)[i])) {
+            printf("PORT conversion error - found non-integer digit\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    return atoi(*string);
 }
