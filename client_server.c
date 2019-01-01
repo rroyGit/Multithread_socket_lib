@@ -8,19 +8,10 @@
 #include <ctype.h> /* isdigit */
 
 #define RESPONSE_SIZE 4096
-<<<<<<< HEAD
-#define PORT 3001
-#define HOST "192.168.1.4"
-
-#define HTTP_METHOD "GET"  //post: path(/docs/)  //get: path(/docs/test18)
-#define PATH "/docs/test12/"
-#define CONTENT_TYPE "Content-Type: application/json; charset=utf-8"
-=======
 //#define CONTENT_TYPE "Content-Type: application/json; charset=utf-8"
 #define CONTENT_TYPE "Content-Type: text/html; charset=utf-8"
 #define NUM_ARGUMENTS 4
 #define STRING_LENGTH 80
->>>>>>> 8416d2b42d6b1c9aca5d727461b709ce00762cc9
 #define CONTENT_BODY "{\"name\": \"test18\", \"content\": \"FROM c program\"}"
 
 
