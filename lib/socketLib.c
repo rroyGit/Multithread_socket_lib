@@ -1,6 +1,6 @@
 #include <stdio.h> /* printf, sprintf */
 #include <stdlib.h> /* exit, atoi, malloc, free */
-#include <unistd.h> /* read, write, close */
+#include <unistd.h> /* read, write, close, sleep */
 #include <string.h> /* memcpy, memset */
 #include <sys/socket.h> /* socket, connect */
 #include <netinet/in.h> /* struct sockaddr_in, struct sockaddr */
@@ -68,31 +68,6 @@ void closeSocket (Connection* con);
 
 // ------------------------------------------------------------ //
 
-int main (int argc, char** args) {
-
-    Connection* a = newConnection();
-
-    if (a != NULL) {
-        
-        startRequest(a);
-
-        char* dummy[80] = {"GET", "localhost", "3001", "/temp", "?sensorId=4&value=5"};
-        setMessage(a, dummy);
-
-        makeRequest(a);
-        getResponse(&a);
-
-
-        freeResources(a);
-        closeSocket(a);
-
-        return EXIT_SUCCESS;
-    }
-
-    return EXIT_FAILURE;
-}
-
-
 Connection* newConnection () {
     Connection *connection = calloc (1, sizeof(*connection));
      
@@ -109,6 +84,7 @@ Connection* newConnection () {
     (connection)->message = NULL;
     (connection)->response = NULL;
 
+    (connection)->socket_ref = -1;
     return connection;
 }
 
@@ -129,7 +105,12 @@ void startRequest (Connection* con) {
 }
 
 void makeRequest (Connection* con) {
-    sendRequest(&(con->message), &(con->socket_ref));
+    if (con->socket_ref != -1) {
+        sendRequest(&(con->message), &(con->socket_ref));
+    } else {
+        printf("Socket isn't created - call startRequest() to do so.\n");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void getResponse (Connection** con) {
@@ -150,7 +131,7 @@ void closeSocket (Connection* con) {
 int getMessageSize (Connection* con) {
     int msg_size = 0;
     if (strcmp(con->HTTP_METHOD, "POST") == 0) {
-        msg_size += strlen("%s %s%s HTTP/1.0\r\n");
+        msg_size += strlen("%s %s%s HTTP/1.1\r\n");
         msg_size += strlen(con->HTTP_METHOD);// method
         msg_size += strlen(con->PATH);// path
         msg_size += strlen(CONTENT_TYPE) + strlen("\r\n"); // header
@@ -159,7 +140,7 @@ int getMessageSize (Connection* con) {
         msg_size += strlen("\r\n");
         msg_size += strlen(CONTENT_BODY); // body content
     } else if (strcmp(con->HTTP_METHOD, "GET") == 0) {
-        msg_size += strlen("%s %s HTTP/1.0\r\n");
+        msg_size += strlen("%s %s HTTP/1.1\r\n");
         msg_size += strlen(con->HTTP_METHOD);// method
         msg_size += strlen(con->PATH);// path
         msg_size += strlen(CONTENT_TYPE); // header
@@ -175,7 +156,7 @@ char* getMessage (Connection* con) {
     char* message = malloc(getMessageSize(con));
 
     if (strcmp(con->HTTP_METHOD, "POST") == 0) {
-        sprintf(message,"%s %s HTTP/1.0\r\n", con->HTTP_METHOD, con->PATH);
+        sprintf(message,"%s %s HTTP/1.1\r\n", con->HTTP_METHOD, con->PATH);
         strcat(message, CONTENT_TYPE); //header
         strcat(message, "\r\n");
         sprintf(message+strlen(message), "Content-Length: %lu\r\n", strlen(CONTENT_BODY));
@@ -183,7 +164,7 @@ char* getMessage (Connection* con) {
         strcat(message, CONTENT_BODY);
     } else if (strcmp(con->HTTP_METHOD, "GET") == 0) {
 
-        sprintf(message,"%s %s%s HTTP/1.0\r\n", con->HTTP_METHOD, con->PATH, con->QUERY);
+        sprintf(message,"%s %s%s HTTP/1.1\r\n", con->HTTP_METHOD, con->PATH, con->QUERY);
         strcat(message, CONTENT_TYPE); // header
         strcat(message, "\r\n");
 
@@ -247,7 +228,7 @@ void sendRequest (char** message, int* socket_ref) {
         sent += bytes;
     } while (sent < total);
 
-    printf("Data sent...yo\n\n");
+   printf("Data sent. %d\n\n", sent);
 }
 
 // receive response
