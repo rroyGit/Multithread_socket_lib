@@ -1,42 +1,23 @@
 #include "socketLib.c"
-
-#include <stdio.h>
-#include <stdlib.h>
+#include "threadLib.c"
 
 int main (int argc, char** args) {
 
-    Connection* a = newConnection();
+    Connection* temp = newConnection();
 
-    if (a != NULL) {
-        int i;
+    if (temp != NULL) {
+        startRequest(temp);
+
+        pthread_t p = pthread_self();
+        printf("Main %lu\n", p);
+
+        pthread_t temp1 = createThread(temp, "/temp", "?sensorId=1&value=");
+
+        pthread_t temp2 = createThread(temp, "/temp", "?sensorId=1&value=");
+
+        pthread_join(temp1, NULL);
+        pthread_join(temp2, NULL);
         
-        char query[80], value[80];
-        startRequest(a);
-        for (i = 0; i < 1; i++) {
-            
-            strcpy(query, "?sensorId=1&value=");
-            sprintf(value, "%d", i);
-            strcat(query, value);
-
-            char* dummy[80] = {"GET", "localhost", "3001", "/temp", "?sensorId=1&value=71"};
-            setMessage(a, dummy);
-            makeRequest(a);
-            
-            getResponse(&a);
-            sleep(2);
-            char* dummy2[80] = {"GET", "localhost", "3001", "/temp", "?sensorId=1&value=72"};
-            setMessage(a, dummy2);
-            makeRequest(a);
-
-            getResponse(&a);
-            sleep(1);
-            freeResources(a);
-            closeSocket(a);
-           
-        }
-
-    
-
         return EXIT_SUCCESS;
     }
 

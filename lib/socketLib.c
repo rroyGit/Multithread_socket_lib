@@ -1,4 +1,5 @@
 #include <stdio.h> /* printf, sprintf */
+#include <stdint.h> /* int8_t, int32_t, uint8_t, etc */
 #include <stdlib.h> /* exit, atoi, malloc, free */
 #include <unistd.h> /* read, write, close, sleep */
 #include <string.h> /* memcpy, memset */
@@ -32,25 +33,26 @@ void sendRequest (char** message, int* socket_ref);
 // receive the response
 char* receiveResponse (int* socket_ref);
 // get integer from char string
-int getIntValue (char* string);
+unsigned int getIntValue (char* string);
 
 typedef struct {
     char *HTTP_METHOD;
     char *HOST, *PATH, *QUERY;
-    int PORT;
+    unsigned int PORT;
 
     struct hostent *server;
     struct sockaddr_in *server_addr;
 
     char *message, *response;
-    int socket_ref, bytes, sent, received, total;
+    int socket_ref, bytes;
+    unsigned int sent, received, total;
 } Connection;
 
 Connection* newConnection();
 
 void initArgs (Connection** con, char** args);
 
-int checkArguments(Connection* con, char** args);
+unsigned int checkArguments(Connection* con, char** args);
 
 void setMessage (Connection* con, char** args);
 
@@ -67,6 +69,7 @@ void freeResources (Connection* con);
 void closeSocket (Connection* con);
 
 // ------------------------------------------------------------ //
+
 
 Connection* newConnection () {
     Connection *connection = calloc (1, sizeof(*connection));
@@ -141,10 +144,13 @@ int getMessageSize (Connection* con) {
         msg_size += strlen(CONTENT_BODY); // body content
     } else if (strcmp(con->HTTP_METHOD, "GET") == 0) {
         msg_size += strlen("%s %s HTTP/1.1\r\n");
-        msg_size += strlen(con->HTTP_METHOD);// method
-        msg_size += strlen(con->PATH);// path
+        msg_size += strlen(con->HTTP_METHOD); // method
+        msg_size += strlen(con->PATH); // path
+        msg_size += strlen(con->QUERY);
         msg_size += strlen(CONTENT_TYPE); // header
-        msg_size += strlen(con->QUERY) + strlen("\r\n");
+        msg_size += strlen("\r\nConnection: keep-alive");
+        msg_size += strlen("\r\nContent-Length:	0");
+        msg_size += strlen("\r\n");
         
         msg_size += strlen("\r\n");
     }
@@ -166,8 +172,10 @@ char* getMessage (Connection* con) {
 
         sprintf(message,"%s %s%s HTTP/1.1\r\n", con->HTTP_METHOD, con->PATH, con->QUERY);
         strcat(message, CONTENT_TYPE); // header
-        strcat(message, "\r\n");
+        strcat(message, "\r\nConnection: keep-alive");
+        strcat(message, "\r\nContent-Length: 0");
 
+        strcat(message, "\r\n");
         strcat(message, "\r\n");
     }
 
@@ -216,8 +224,10 @@ void setServer (struct hostent** server, char* host) {
 
 // send the request through write to socket
 void sendRequest (char** message, int* socket_ref) {
-    int total = strlen(*message);
-    int bytes, sent = 0;
+    unsigned int total = strlen(*message);
+    unsigned int sent = 0;
+    int bytes;
+  
     do {
         bytes = write(*socket_ref, *message + sent, total - sent);
         if (bytes < 0) {
@@ -234,7 +244,8 @@ void sendRequest (char** message, int* socket_ref) {
 // receive response
 char* receiveResponse(int* socket_ref) {
     char* response = malloc(RESPONSE_SIZE);
-    int total, bytes, received = 0;
+    unsigned int total, received = 0;
+    int bytes;
 
     memset(response, 0, RESPONSE_SIZE);
     total = RESPONSE_SIZE - 1;
@@ -245,10 +256,10 @@ char* receiveResponse(int* socket_ref) {
             perror("ERROR reading response from socket yo");
             exit(EXIT_FAILURE);
         }
-        
-        if (bytes == 0) break;
 
         received += bytes;
+        if (received >= 239) break;
+
     } while (received < total);
 
     if (received == total) {
@@ -256,6 +267,7 @@ char* receiveResponse(int* socket_ref) {
         exit(EXIT_FAILURE);
     }
 
+    printf("%d\n", received);
     return response;
 }
 
@@ -275,29 +287,33 @@ void initArgs (Connection** con, char** args) {
     }
 }
 
-int checkArguments(Connection* con, char** args) {
+unsigned int checkArguments(Connection* con, char** args) {
     
     if (args == NULL) {
         printf("Using default values > HTTP-METHOD: %s HOST: %s PORT: %i PATH: %s QUERY: %s\n", 
             con->HTTP_METHOD, con->HOST, con->PORT, con->PATH, con->QUERY);
-        return 0;
+        return (unsigned int) 0;
     } else {
 
         // TO-DO: error check for NULL in each index that is derefrenced
 
         printf("Using these values >  HTTP-METHOD: %s HOST: %s PORT: %s PATH: %s QUERY: %s\n",
             args[0], args[1], args[2], args[3], args[4]);
-        return 1;
+        return (unsigned int) 1;
     } 
 }
 
-int getIntValue (char* string) {
+unsigned int getIntValue (char* string) {
   
-    for (int i = 0; i < strlen(string); i++) {
+    for (unsigned int i = 0; i < strlen(string); i++) {
         if(!isdigit((string)[i])) {
             printf("PORT conversion error - found non-integer digit\n");
             exit(EXIT_FAILURE);
         }
     }
-    return atoi(string);
+    
+    if (atoi(string) < 0) {
+        perror("Negative port number\n");
+        exit(EXIT_FAILURE);
+    } else return (unsigned int) atoi(string);
 }
