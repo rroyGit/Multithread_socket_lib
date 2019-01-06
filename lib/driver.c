@@ -1,25 +1,63 @@
 #include "socketLib.c"
 #include "threadLib.c"
 
-int main (int argc, char** args) {
+#define MAX_SENSORS 12
+#define MAX_SENSORS_PER 4
+#define MAX_STRING_CHAR 80
 
+void waitThreads ();
+void doTemp (unsigned int* index);
+void doSpeed (unsigned int* index);
+
+char query[MAX_SENSORS_PER][MAX_STRING_CHAR] = {"?sensorId=1&value=", 
+    "?sensorId=2&value=", "?sensorId=3&value=", "?sensorId=4&value="};
+pthread_t threadsRef[MAX_SENSORS];
+
+int main (int argc, char** args) {
+    unsigned int index = 0;
+
+    pthread_t p = pthread_self();
+    printf("Main %lu\n", p);
+    
+    doTemp(&index);
+
+
+    return EXIT_FAILURE;
+}
+
+void doTemp (unsigned int* index) {
     Connection* temp = newConnection();
+    unsigned int tempIndex = *index;
 
     if (temp != NULL) {
         startRequest(temp);
 
-        pthread_t p = pthread_self();
-        printf("Main %lu\n", p);
-
-        pthread_t temp1 = createThread(temp, "/temp", "?sensorId=1&value=");
-
-        pthread_t temp2 = createThread(temp, "/temp", "?sensorId=1&value=");
-
-        pthread_join(temp1, NULL);
-        pthread_join(temp2, NULL);
-        
-        return EXIT_SUCCESS;
+       for ( ; tempIndex < MAX_SENSORS_PER; tempIndex++) {
+            threadsRef[tempIndex] = createThread(temp, "/temp", query[tempIndex]);
+        }
     }
 
-    return EXIT_FAILURE;
+    *index = tempIndex;
+}
+
+void doSpeed (unsigned int* index) {
+    Connection* speed = newConnection();
+    unsigned int tempIndex = *index;
+
+    if (speed != NULL) {
+        startRequest(speed);
+
+       for ( ; tempIndex < 2*MAX_SENSORS_PER; tempIndex++) {
+            threadsRef[tempIndex] = createThread(speed, "/speed", query[tempIndex]);
+        }
+    }
+
+    *index = tempIndex;
+}
+
+void waitThreads () {
+    for (int i = 0; i < MAX_SENSORS; i++) {
+        if (threadsRef[i] != 0) 
+            pthread_join(threadsRef[i], NULL);
+    }   
 }
