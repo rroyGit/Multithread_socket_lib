@@ -222,7 +222,7 @@ void setServer (struct hostent** server, char* host) {
     }
 }
 
-// send the request through write to socket
+// send sensor data request using write and reference to socket
 void sendRequest (char** message, int* socket_ref) {
     unsigned int total = strlen(*message);
     unsigned int sent = 0;
