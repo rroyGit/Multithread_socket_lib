@@ -17,24 +17,23 @@ int main (int argc, char** args) {
     unsigned int index = 0;
 
     pthread_t p = pthread_self();
-    printf("Main %lu\n", p);
+    printf("Main thread %lu\n", p);
     
     doTemp(&index);
+
+    waitThreads();
 
 
     return EXIT_FAILURE;
 }
 
 void doTemp (unsigned int* index) {
-    Connection* temp = newConnection();
+
     unsigned int tempIndex = *index;
 
-    if (temp != NULL) {
-        startRequest(temp);
-
-       for ( ; tempIndex < MAX_SENSORS_PER; tempIndex++) {
-            threadsRef[tempIndex] = createThread(temp, "/temp", query[tempIndex]);
-        }
+    for ( ; tempIndex < MAX_SENSORS_PER; tempIndex++) {
+        threadsRef[tempIndex] = createThread(newConnection(), "/temp", query[tempIndex]);
+      
     }
 
     *index = tempIndex;
@@ -45,7 +44,6 @@ void doSpeed (unsigned int* index) {
     unsigned int tempIndex = *index;
 
     if (speed != NULL) {
-        startRequest(speed);
 
        for ( ; tempIndex < 2*MAX_SENSORS_PER; tempIndex++) {
             threadsRef[tempIndex] = createThread(speed, "/speed", query[tempIndex]);

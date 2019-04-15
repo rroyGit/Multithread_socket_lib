@@ -7,6 +7,7 @@
 #include <netinet/in.h> /* struct sockaddr_in, struct sockaddr */
 #include <netdb.h> /* struct hostent, gethostbyname */
 #include <ctype.h> /* isdigit */
+#include <pthread.h>
 
 #define RESPONSE_SIZE 4096
 //#define CONTENT_TYPE "Content-Type: application/json; charset=utf-8"
@@ -34,6 +35,8 @@ void sendRequest (char** message, int* socket_ref);
 char* receiveResponse (int* socket_ref);
 // get integer from char string
 unsigned int getIntValue (char* string);
+// clear STD buffer
+void clearStdBuffer();
 
 typedef struct {
     char *HTTP_METHOD;
@@ -112,14 +115,14 @@ void makeRequest (Connection* con) {
         sendRequest(&(con->message), &(con->socket_ref));
     } else {
         printf("Socket isn't created - call startRequest() to do so.\n");
-        exit(EXIT_FAILURE);
+        pthread_exit(NULL);
     }
 }
 
 void getResponse (Connection** con) {
     (*con)->response = receiveResponse(&(*con)->socket_ref);
 
-    printf("Response:\n%s\n", (*con)->response);
+    //printf("Response:\n%s\n", (*con)->response);
 }
 
 void freeResources (Connection* con) {
@@ -180,7 +183,8 @@ char* getMessage (Connection* con) {
     }
 
     //sending this...
-    printf("---\n%s\n---\n", message);
+    clearStdBuffer();
+    //printf("---\n%s\n---\n", message);
     return message;
 }
 
@@ -199,26 +203,29 @@ void createSocket (int* socket_ref) {
     // http://man7.org/linux/man-pages/man2/socket.2.html
 
     if ((*socket_ref = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        clearStdBuffer();
         perror("Socket not created yo");
-        exit(EXIT_FAILURE);
+        pthread_exit(NULL);
     }
 }
 
 // connect the socket
 void connectSocket (struct sockaddr_in** server_addr, int* socket_ref) {
     // https://linux.die.net/man/3/connect
+    clearStdBuffer();
 
     if (connect(*socket_ref, (struct sockaddr *) &(**server_addr), sizeof(**server_addr)) == -1) {
         perror("ERROR connecting yo");
-        exit(EXIT_FAILURE);
-    } else printf("Connected yo\n");
+        pthread_exit(NULL);
+    } //else printf("Connected yo\n");
 }
 
 // look up ip address
 void setServer (struct hostent** server, char* host) {
     if ((*server = gethostbyname(host)) == NULL) {
+        clearStdBuffer();
         perror("no such host yo");
-        exit(EXIT_FAILURE);
+        pthread_exit(NULL);
     }
 }
 
@@ -228,17 +235,18 @@ void sendRequest (char** message, int* socket_ref) {
     unsigned int sent = 0;
     int bytes;
   
+    clearStdBuffer();
     do {
         bytes = write(*socket_ref, *message + sent, total - sent);
         if (bytes < 0) {
             perror("ERROR writing message to socket yo");
-            exit(EXIT_FAILURE);
+            pthread_exit(NULL);
         }
         if (bytes == 0) break;
         sent += bytes;
     } while (sent < total);
 
-   printf("Data sent. %d\n\n", sent);
+   //printf("Data sent. %d\n\n", sent);
 }
 
 // receive response
@@ -247,6 +255,7 @@ char* receiveResponse(int* socket_ref) {
     unsigned int total, received = 0;
     int bytes;
 
+    clearStdBuffer();
     memset(response, 0, RESPONSE_SIZE);
     total = RESPONSE_SIZE - 1;
    
@@ -254,7 +263,7 @@ char* receiveResponse(int* socket_ref) {
         bytes = read(*socket_ref, response + received, total - received);
         if (bytes < 0) {
             perror("ERROR reading response from socket yo");
-            exit(EXIT_FAILURE);
+            pthread_exit(NULL);
         }
 
         received += bytes;
@@ -264,10 +273,10 @@ char* receiveResponse(int* socket_ref) {
 
     if (received == total) {
         perror("ERROR storing complete response from socket yo");
-        exit(EXIT_FAILURE);
+        pthread_exit(NULL);
     }
 
-    printf("%d\n", received);
+    //printf("%d\n", received);
     return response;
 }
 
@@ -288,32 +297,32 @@ void initArgs (Connection** con, char** args) {
 }
 
 unsigned int checkArguments(Connection* con, char** args) {
-    
+    clearStdBuffer();
     if (args == NULL) {
-        printf("Using default values > HTTP-METHOD: %s HOST: %s PORT: %i PATH: %s QUERY: %s\n", 
-            con->HTTP_METHOD, con->HOST, con->PORT, con->PATH, con->QUERY);
+        //printf("Using default values > HTTP-METHOD: %s HOST: %s PORT: %i PATH: %s QUERY: %s\n", 
+            //con->HTTP_METHOD, con->HOST, con->PORT, con->PATH, con->QUERY);
         return (unsigned int) 0;
     } else {
 
         // TO-DO: error check for NULL in each index that is derefrenced
 
-        printf("Using these values >  HTTP-METHOD: %s HOST: %s PORT: %s PATH: %s QUERY: %s\n",
-            args[0], args[1], args[2], args[3], args[4]);
+        //printf("Using these values >  HTTP-METHOD: %s HOST: %s PORT: %s PATH: %s QUERY: %s\n",
+            //args[0], args[1], args[2], args[3], args[4]);
         return (unsigned int) 1;
     } 
 }
 
 unsigned int getIntValue (char* string) {
-  
+    clearStdBuffer();
     for (unsigned int i = 0; i < strlen(string); i++) {
         if(!isdigit((string)[i])) {
             printf("PORT conversion error - found non-integer digit\n");
-            exit(EXIT_FAILURE);
+            pthread_exit(NULL);
         }
     }
     
     if (atoi(string) < 0) {
         perror("Negative port number\n");
-        exit(EXIT_FAILURE);
+        pthread_exit(NULL);
     } else return (unsigned int) atoi(string);
 }

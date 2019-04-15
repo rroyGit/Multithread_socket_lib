@@ -1,5 +1,6 @@
+#include <time.h>
+#include <unistd.h>
 #include <pthread.h>
-
 
 typedef struct {
     Connection* con;
@@ -17,15 +18,32 @@ void* threadFunction (void* arg) {
     char* query = ((ThreadArg*)arg)->query;
     
     char queryFinal[80], value[80];
-    strcpy(queryFinal, query);
-    sprintf(value, "%d", 5);
-    strcat(queryFinal, value);
 
-    char* dummy[80] = {"GET", "localhost", "3001", path, queryFinal};
+    for (int i = 0; i < 50; i++) {
+        startRequest(con);
 
-    setMessage(con, dummy);
-    makeRequest(con);
-    getResponse(&con);
+        int id = query[10] - 48;
+        
+        srand(time(NULL));
+        int valueInt = (rand() % 36) * id;
+        
+        //printf("%s - %d - %d\n", query, id, valueInt);
+        
+        strcpy(queryFinal, query);
+        sprintf(value, "%d", valueInt);
+        strcat(queryFinal, value);
+
+        char* dummy[80] = {"GET", "localhost", "3001", path, queryFinal};
+
+        setMessage(con, dummy);
+        makeRequest(con);
+        getResponse(&con);
+
+        freeResources(con);
+        closeSocket(con);
+        unsigned int microseconds = 500000;
+        usleep(microseconds);
+    }
 
     pthread_t p = pthread_self();
     printf("Exiting thread %lu\n", p);
@@ -42,7 +60,7 @@ pthread_t createThread (Connection* con, char* path, char* query) {
 
     pthread_t thread;
     if (!pthread_create(&thread, NULL, threadFunction, (void*) arg)) {
-       
+        printf("\tSub-thread %lu\n", thread);
     } else {
         perror("Unable to create thread!");
         exit(EXIT_FAILURE);
