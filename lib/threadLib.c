@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <pthread.h>
 
+#include "fileLib.c"
+
 typedef struct {
     Connection* con;
     char* query;
@@ -18,6 +20,13 @@ void* threadFunction (void* arg) {
     char* query = ((ThreadArg*)arg)->query;
     
     char queryFinal[80], value[80];
+
+    char ids[] = "1234567890";
+    char *fileName = path + 1; // skip the first '/' char of the route to get sensor name
+
+    unsigned int microseconds = 500000;
+    int indexId = strcspn(query, ids);
+    int sensorId = query[indexId];
 
     for (int i = 0; i < 50; i++) {
         startRequest(con);
@@ -37,11 +46,14 @@ void* threadFunction (void* arg) {
 
         setMessage(con, dummy);
         makeRequest(con);
-        getResponse(&con);
+        // getResponse(&con);
+
+        writeFile(fileName, sensorId, valueInt);
+
 
         freeResources(con);
         closeSocket(con);
-        unsigned int microseconds = 500000;
+        
         usleep(microseconds);
     }
 
