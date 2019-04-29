@@ -1,17 +1,19 @@
-#include "socketLib.c"
-#include "threadLib.c"
+#include <stdio.h> /* printf, sprintf */
+#include <stdlib.h> /* exit, atoi, malloc, free */
 
+#include "socketLib.h"
+#include "threadLib.h"
 
-#define MAX_SENSORS 12
-#define MAX_SENSORS_PER 4
+#define MAX_SENSORS 4
+#define MAX_SENSORS_PER 2
 #define MAX_STRING_CHAR 80
 
 void waitThreads ();
 void doTemp (unsigned int* index);
 void doSpeed (unsigned int* index);
+void doDist (unsigned int* index);
 
-char query[MAX_SENSORS_PER][MAX_STRING_CHAR] = {"?sensorId=1&value=", 
-    "?sensorId=2&value=", "?sensorId=3&value=", "?sensorId=4&value="};
+char query[MAX_SENSORS_PER][MAX_STRING_CHAR] = {"?sensorId=1&value=", "?sensorId=2&value="};
 pthread_t threadsRef[MAX_SENSORS];
 
 int main (int argc, char** args) {
@@ -21,6 +23,7 @@ int main (int argc, char** args) {
     printf("Main thread %lu\n", p);
     
     doTemp(&index);
+    doDist(&index);
 
     waitThreads();
 
@@ -32,23 +35,28 @@ void doTemp (unsigned int* index) {
 
     unsigned int tempIndex = *index;
 
-    for ( ; tempIndex < MAX_SENSORS_PER; tempIndex++) {
-        threadsRef[tempIndex] = createThread(newConnection(), "/temp", query[tempIndex]);
-      
+    for (int i = 0; i < MAX_SENSORS_PER; tempIndex++, i++) {
+        threadsRef[tempIndex] = createThread(newConnection(), "/temp", query[i]);
+    }
+
+    *index = tempIndex;
+}
+
+void doDist (unsigned int* index) {
+    unsigned int tempIndex = *index;
+
+    for (int i = 0; i < MAX_SENSORS_PER; tempIndex++, i++) {
+        threadsRef[tempIndex] = createThread(newConnection(), "/dist", query[i]);
     }
 
     *index = tempIndex;
 }
 
 void doSpeed (unsigned int* index) {
-    Connection* speed = newConnection();
     unsigned int tempIndex = *index;
 
-    if (speed != NULL) {
-
-       for ( ; tempIndex < 2*MAX_SENSORS_PER; tempIndex++) {
-            threadsRef[tempIndex] = createThread(speed, "/speed", query[tempIndex]);
-        }
+    for (int i = 0; i < MAX_SENSORS_PER; tempIndex++, i++) {
+        threadsRef[tempIndex] = createThread(newConnection(), "/speed", query[i]);
     }
 
     *index = tempIndex;

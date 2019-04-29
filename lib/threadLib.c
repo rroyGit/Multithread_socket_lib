@@ -1,32 +1,28 @@
+#include <stdio.h> /* printf, sprintf */
+#include <stdlib.h> /* exit, atoi, malloc, free */
+#include <string.h> /* memcpy, memset */
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
 
-#include "fileLib.c"
+#include "threadLib.h"
+#include "fileLib.h"
 
-typedef struct {
-    Connection* con;
-    char* query;
-    char* path;
-
-} ThreadArg;
-
-ThreadArg* getThreadArg (Connection* con, char *path, char* query);
-void clearStdBuffer();
 
 void* threadFunction (void* arg) {
     Connection* con = ((ThreadArg*)arg)->con;
     char* path = ((ThreadArg*)arg)->path;
     char* query = ((ThreadArg*)arg)->query;
     
-    char queryFinal[80], value[80];
+    char queryFinal[80], endQuery[80];
 
     char ids[] = "1234567890";
     char *fileName = path + 1; // skip the first '/' char of the route to get sensor name
 
-    unsigned int microseconds = 500000;
+    unsigned int microseconds = 600000; // 600 ms
     int indexId = strcspn(query, ids);
-    int sensorId = query[indexId];
+    int sensorId = (int) query[indexId] - 48;
+    int seqNum = 0;
 
     for (int i = 0; i < 50; i++) {
         startRequest(con);
@@ -38,18 +34,19 @@ void* threadFunction (void* arg) {
         
         //printf("%s - %d - %d\n", query, id, valueInt);
         
+        seqNum = (seqNum++) % 2;
+
         strcpy(queryFinal, query);
-        sprintf(value, "%d", valueInt);
-        strcat(queryFinal, value);
+        sprintf(endQuery, "%i&seqNum=%i", valueInt, seqNum);
+        strcat(queryFinal, endQuery);
 
-        char* dummy[80] = {"GET", "localhost", "3001", path, queryFinal};
+        char* reqMessage[80] = {"GET", "localhost", "3001", path, queryFinal};
 
-        setMessage(con, dummy);
+        setMessage(con, reqMessage);
         makeRequest(con);
         // getResponse(&con);
 
         writeFile(fileName, sensorId, valueInt);
-
 
         freeResources(con);
         closeSocket(con);
